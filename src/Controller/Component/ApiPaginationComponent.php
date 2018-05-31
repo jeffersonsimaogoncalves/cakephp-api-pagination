@@ -1,5 +1,6 @@
 <?php
-namespace BryanCrowe\ApiPagination\Controller\Component;
+
+namespace JeffersonSimaoGoncalves\ApiPagination\Controller\Component;
 
 use Cake\Controller\Component;
 use Cake\Event\Event;
@@ -11,6 +12,12 @@ use Cake\Event\Event;
  */
 class ApiPaginationComponent extends Component
 {
+    /**
+     *
+     * @var string
+     */
+    public $model = "";
+
     /**
      * Default config.
      *
@@ -34,6 +41,7 @@ class ApiPaginationComponent extends Component
      * JSON or XML request with pagination.
      *
      * @param \Cake\Event\Event $event The Controller.beforeRender event.
+     *
      * @return void
      */
     public function beforeRender(Event $event)
@@ -42,9 +50,15 @@ class ApiPaginationComponent extends Component
             return;
         }
 
-        $subject = $event->subject();
-        $this->pagingInfo = $this->request->params['paging'][$subject->name];
-        $config = $this->config();
+        $subject = $event->getSubject();
+
+        if ($this->getController()->getRequest()->getParam('paging.' . $subject->name)) {
+            $this->pagingInfo = $this->getController()->getRequest()->getParam('paging.' . $subject->name);
+        } else {
+            $this->pagingInfo = $this->getController()->getRequest()->getParam('paging.' . $this->model);
+        }
+
+        $config = $this->getConfig();
 
         if (!empty($config['aliases'])) {
             $this->setAliases();
@@ -59,6 +73,17 @@ class ApiPaginationComponent extends Component
     }
 
     /**
+     * Checks whether the current request is a JSON or XML request with
+     * pagination.
+     *
+     * @return bool True if JSON or XML with paging, otherwise false.
+     */
+    protected function isPaginatedApiRequest()
+    {
+        return $this->getController()->getRequest()->getParam('paging') && $this->getController()->getRequest()->is(['json', 'xml']);
+    }
+
+    /**
      * Aliases the default pagination keys to the new keys that the user defines
      * in the config.
      *
@@ -66,7 +91,7 @@ class ApiPaginationComponent extends Component
      */
     protected function setAliases()
     {
-        foreach ($this->config('aliases') as $key => $value) {
+        foreach ($this->getConfig('aliases') as $key => $value) {
             $this->pagingInfo[$value] = $this->pagingInfo[$key];
             unset($this->pagingInfo[$key]);
         }
@@ -80,28 +105,11 @@ class ApiPaginationComponent extends Component
      */
     protected function setVisibility()
     {
-        $visible = $this->config('visible');
+        $visible = $this->getConfig('visible');
         foreach ($this->pagingInfo as $key => $value) {
             if (!in_array($key, $visible)) {
                 unset($this->pagingInfo[$key]);
             }
         }
-    }
-
-    /**
-     * Checks whether the current request is a JSON or XML request with
-     * pagination.
-     *
-     * @return bool True if JSON or XML with paging, otherwise false.
-     */
-    protected function isPaginatedApiRequest()
-    {
-        if (isset($this->request->params['paging']) &&
-            $this->request->is(['json', 'xml'])
-        ) {
-            return true;
-        }
-
-        return false;
     }
 }
